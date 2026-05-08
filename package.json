@@ -1,8 +1,8 @@
 {
   "name": "cdhr-justice-line-backend",
   "version": "1.0.0",
-  "description": "CDHR Akwa Ibom — USSD Justice Line backend (Vercel serverless)",
   "private": true,
+  "type": "module",
   "engines": { "node": ">=18" },
   "dependencies": {
     "@vercel/kv": "^1.0.1"
