@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CDHR USSD Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --red: #e53935;
+    --red-dim: #b71c1c;
+    --red-glow: rgba(229,57,53,0.15);
+    --amber: #ffab00;
+    --bg: #06050a;
+    --surface: #100d14;
+    --surface2: #16121c;
+    --border: rgba(229,57,53,0.22);
+    --text: #f5e9e9;
+    --text-dim: #7d6060;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Barlow', sans-serif;
+    --condensed: 'Barlow Condensed', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.07) 2px,
+      rgba(0,0,0,0.07) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  .page-header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .org-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--red-glow);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 6px 14px;
+    margin-bottom: 16px;
+  }
+
+  .org-badge-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--red);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  .org-badge span {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--red);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .page-title {
+    font-family: var(--condensed);
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 800;
+    letter-spacing: 1px;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .page-title span { color: var(--red); }
+
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    letter-spacing: 1px;
+    font-weight: 300;
+  }
+
+  .phone-wrap {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .phone {
+    width: 300px;
+    background: #0d0d0d;
+    border-radius: 40px;
+    border: 2px solid #1a1a1a;
+    padding: 20px 16px 28px;
+    position: relative;
+    box-shadow:
+      0 0 0 1px #111,
+      0 40px 80px rgba(0,0,0,0.8),
+      inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .phone::before {
+    content: '';
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 4px;
+    background: #1a1a1a;
+    border-radius: 10px;
+  }
+
+  .phone-screen {
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 24px;
+    border: 1px solid #1a1a1a;
+    min-height: 420px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .status-bar {
+    background: #000;
+    padding: 8px 14px 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #111;
+  }
+
+  .status-time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #fff;
+  }
+
+  .status-icons {
+    font-size: 10px;
+    color: #fff;
+    letter-spacing: 2px;
+  }
+
+  .carrier-bar {
+    background: #0a0a0a;
+    padding: 6px 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid #111;
+  }
+
+  .carrier-dot {
+    width: 5px;
+    height: 5px;
+    background: var(--red);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  .carrier-name {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  .ussd-popup {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #f5f5f5;
+    margin: 10px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #ddd;
+  }
+
+  .ussd-header {
+    background: #b71c1c;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ussd-header-icon {
+    width: 20px;
+    height: 20px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+  }
+
+  .ussd-header-text {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: 0.5px;
+  }
+
+  .ussd-code-label {
+    font-family: var(--sans);
+    font-size: 9px;
+    color: rgba(255,255,255,0.7);
+    margin-left: auto;
+    font-weight: 300;
+  }
+
+  .ussd-body {
+    flex: 1;
+    padding: 12px;
+    background: #fff;
+    overflow-y: auto;
+  }
+
+  .ussd-message {
+    font-family: var(--sans);
+    font-size: 12px;
+    color: #212121;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-height: 120px;
+  }
+
+  .ussd-input-row {
+    background: #f5f5f5;
+    border-top: 1px solid #e0e0e0;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ussd-input {
+    flex: 1;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: #212121;
+    outline: none;
+  }
+
+  .ussd-input:focus { border-color: #b71c1c; }
+
+  .ussd-send-btn {
+    background: #b71c1c;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+
+  .ussd-send-btn:hover { background: #7f0000; }
+  .ussd-send-btn:disabled { background: #9e9e9e; cursor: not-allowed; }
+
+  .ussd-cancel-btn {
+    background: transparent;
+    color: #f44336;
+    border: 1px solid #f44336;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .ussd-cancel-btn:hover { background: #fdecea; }
+
+  .ussd-end-bar {
+    background: #f5f5f5;
+    border-top: 1px solid #e0e0e0;
+    padding: 8px 10px;
+    text-align: center;
+  }
+
+  .ussd-end-btn {
+    background: #b71c1c;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 7px 20px;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .ussd-end-btn:hover { background: #7f0000; }
+
+  .dial-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    gap: 16px;
+    background: #000;
+  }
+
+  .dial-code-display {
+    font-family: var(--mono);
+    font-size: 20px;
+    color: #fff;
+    letter-spacing: 2px;
+    min-height: 30px;
+    text-align: center;
+  }
+
+  .dial-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 20px;
+    background: #fff;
+    margin-left: 2px;
+    vertical-align: middle;
+    animation: blink 1s infinite;
+  }
+
+  .dial-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+
+  .dial-btn {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    color: #fff;
+    padding: 12px 0;
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.1s;
+    text-align: center;
+  }
+
+  .dial-btn:hover { background: #2a2a2a; }
+  .dial-btn:active { background: #333; }
+  .dial-btn.star { font-size: 20px; }
+  .dial-btn.hash { font-size: 18px; }
+  .dial-btn.backspace { font-size: 14px; color: #aaa; }
+
+  .dial-call-btn {
+    background: #b71c1c;
+    border: none;
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 22px;
+    box-shadow: 0 4px 12px rgba(183,28,28,0.5);
+  }
+
+  .dial-call-btn:hover { background: #7f0000; }
+
+  .loading-dots {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .loading-dots span {
+    width: 6px;
+    height: 6px;
+    background: #b71c1c;
+    border-radius: 50%;
+    animation: dotBounce 1.2s infinite;
+  }
+
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  .side-panel {
+    width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .panel-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+  }
+
+  .panel-card-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--red);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .panel-card-title::before {
+    content: '';
+    display: block;
+    width: 3px;
+    height: 12px;
+    background: var(--red);
+    border-radius: 2px;
+  }
+
+  .log-entry {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    line-height: 1.5;
+  }
+
+  .log-entry:last-child { border-bottom: none; }
+  .log-entry .log-dir { color: var(--amber); }
+  .log-entry .log-green { color: #66bb6a; }
+  .log-entry .log-red { color: var(--red); }
+
+  .shortcode-display {
+    font-family: var(--mono);
+    font-size: 22px;
+    color: var(--red);
+    letter-spacing: 3px;
+    text-align: center;
+    padding: 8px 0;
+    text-shadow: 0 0 20px var(--red);
+  }
+
+  .shortcode-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-align: center;
+    font-family: var(--mono);
+    letter-spacing: 1px;
+  }
+
+  .step-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .step-item {
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+  }
+
+  .step-item.active { color: var(--red); }
+  .step-item.done { color: var(--text-dim); text-decoration: line-through; }
+
+  .step-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .step-item.active .step-dot { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .step-item.done .step-dot { background: #333; }
+
+  .unit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .unit-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .unit-row:last-child { border-bottom: none; }
+  .unit-name { color: var(--text); }
+
+  .unit-status {
+    padding: 2px 7px;
+    border-radius: 2px;
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+
+  .unit-status.active {
+    background: rgba(229,57,53,0.12);
+    border: 1px solid rgba(229,57,53,0.3);
+    color: var(--red);
+  }
+
+  .unit-status.standby {
+    background: rgba(255,171,0,0.1);
+    border: 1px solid rgba(255,171,0,0.25);
+    color: var(--amber);
+  }
+
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 2px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+
+  .status-chip.live {
+    background: rgba(229,57,53,0.1);
+    border: 1px solid rgba(229,57,53,0.3);
+    color: var(--red);
+  }
+
+  .status-chip.live::before {
+    content: '';
+    width: 4px;
+    height: 4px;
+    background: var(--red);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  @keyframes dotBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-in { animation: fadeIn 0.3s ease forwards; }
+
+  @media (max-width: 680px) {
+    .side-panel { width: 100%; max-width: 300px; }
+    .phone-wrap { gap: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="org-badge">
+    <div class="org-badge-dot"></div>
+    <span>CDHR USSD Demo</span>
+  </div>
+  <div class="page-title">Legal Defence<br><span>On Every Phone</span></div>
+  <div class="page-subtitle">Interactive USSD Simulator — Powered by Live Backend</div>
+</div>
+
+<div class="phone-wrap">
+
+  <!-- PHONE -->
+  <div class="phone">
+    <div class="phone-screen" id="phoneScreen">
+
+      <div class="status-bar">
+        <span class="status-time" id="clockDisplay">9:41</span>
+        <span class="status-icons">▲▼ ▋▋▋</span>
+      </div>
+
+      <div class="carrier-bar">
+        <div class="carrier-dot"></div>
+        <span class="carrier-name">NG DEMO NET · 4G</span>
+        <span class="status-chip live" style="margin-left:auto">LIVE</span>
+      </div>
+
+      <!-- DIAL SCREEN -->
+      <div class="dial-screen" id="dialScreen">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-bottom:4px">DIAL USSD CODE</div>
+        <div class="dial-code-display" id="dialDisplay"><span class="dial-cursor"></span></div>
+        <div class="dial-grid">
+          <button class="dial-btn" onclick="dialPress('1')">1</button>
+          <button class="dial-btn" onclick="dialPress('2')">2</button>
+          <button class="dial-btn" onclick="dialPress('3')">3</button>
+          <button class="dial-btn" onclick="dialPress('4')">4</button>
+          <button class="dial-btn" onclick="dialPress('5')">5</button>
+          <button class="dial-btn" onclick="dialPress('6')">6</button>
+          <button class="dial-btn" onclick="dialPress('7')">7</button>
+          <button class="dial-btn" onclick="dialPress('8')">8</button>
+          <button class="dial-btn" onclick="dialPress('9')">9</button>
+          <button class="dial-btn star" onclick="dialPress('*')">*</button>
+          <button class="dial-btn" onclick="dialPress('0')">0</button>
+          <button class="dial-btn hash" onclick="dialPress('#')">#</button>
+        </div>
+        <div style="display:flex;gap:16px;align-items:center">
+          <button class="dial-btn backspace" style="padding:10px 16px;border-radius:6px" onclick="dialBackspace()">⌫</button>
+          <button class="dial-call-btn" onclick="dialCall()">📞</button>
+          <button class="dial-btn" style="padding:10px 16px;border-radius:6px;color:#f44336;border-color:#2a2a2a" onclick="dialClear()">✕</button>
+        </div>
+      </div>
+
+      <!-- USSD POPUP -->
+      <div class="ussd-popup" id="ussdPopup" style="display:none">
+        <div class="ussd-header">
+          <div class="ussd-header-icon">⚖️</div>
+          <span class="ussd-header-text">USSD Message</span>
+          <span class="ussd-code-label" id="ussdCodeLabel">*737*002#</span>
+        </div>
+        <div class="ussd-body">
+          <div class="loading-dots" id="loadingDots">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="ussd-message fade-in" id="ussdMessage" style="display:none"></div>
+        </div>
+        <div id="ussdActions"></div>
+      </div>
+
+    </div>
+
+    <div style="display:flex;justify-content:center;margin-top:16px">
+      <div style="width:40px;height:4px;background:#1a1a1a;border-radius:10px"></div>
+    </div>
+  </div>
+
+  <!-- SIDE PANEL -->
+  <div class="side-panel">
+
+    <div class="panel-card">
+      <div class="panel-card-title">Shortcode</div>
+      <div class="shortcode-display">*737*002#</div>
+      <div class="shortcode-sub">Tap to auto-fill → press 📞</div>
+      <div style="margin-top:10px;text-align:center">
+        <button onclick="autoFill()" style="background:var(--red-glow);border:1px solid var(--border);color:var(--red);padding:6px 16px;border-radius:2px;font-family:var(--mono);font-size:10px;cursor:pointer;letter-spacing:1px">AUTO-FILL</button>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-card-title">Session Log</div>
+      <div id="sessionLog" style="max-height:200px;overflow-y:auto">
+        <div class="log-entry" style="color:var(--text-dim)">— awaiting first dial —</div>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-card-title">Test Cases</div>
+      <div class="step-list">
+        <div class="step-item active"><div class="step-dot"></div>20001 — Illegal Arrest · Itu</div>
+        <div class="step-item active"><div class="step-dot"></div>20002 — Land Grab · Ibiono Ibom</div>
+        <div class="step-item active"><div class="step-dot"></div>20003 — GBV · Etinan</div>
+        <div class="step-item active"><div class="step-dot"></div>20004 — Police Brutality · Abak</div>
+        <div class="step-item active"><div class="step-dot"></div>20005 — Unlawful Detention · Uyo</div>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-card-title">Active Units</div>
+      <div class="unit-list">
+        <div class="unit-row">
+          <span class="unit-name">Ibiono Ibom</span>
+          <span class="unit-status active">ACTIVE</span>
+        </div>
+        <div class="unit-row">
+          <span class="unit-name">Itu</span>
+          <span class="unit-status active">ACTIVE</span>
+        </div>
+        <div class="unit-row">
+          <span class="unit-name">Ikot Ekpene</span>
+          <span class="unit-status active">ACTIVE</span>
+        </div>
+        <div class="unit-row">
+          <span class="unit-name">Etinan</span>
+          <span class="unit-status standby">STANDBY</span>
+        </div>
+        <div class="unit-row">
+          <span class="unit-name">Abak</span>
+          <span class="unit-status active">ACTIVE</span>
+        </div>
+        <div class="unit-row">
+          <span class="unit-name">Uruan</span>
+          <span class="unit-status standby">STANDBY</span>
+        </div>
+        <div class="unit-row">
+          <span class="unit-name">Obio Offot</span>
+          <span class="unit-status active">ACTIVE</span>
+        </div>
+        <div class="unit-row">
+          <span class="unit-name">Obot Akara</span>
+          <span class="unit-status standby">STANDBY</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-card-title">Backend</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);line-height:1.8;word-break:break-all">
+        cdhr-ussd.vercel.app<br>
+        <span style="color:var(--red)">/api/ussd</span><br>
+        <span style="color:var(--amber)">POST · text/plain</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div style="text-align:center;margin-top:40px;font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:2px">
+  DESIGNED BY PR3NC2 FOR CDHR · cdhr.org.ng
+</div>
+
+<script>
+  let dialValue = '';
+  let sessionText = '';
+  let sessionId = 'demo-' + Date.now();
+  let isEnded = false;
+  let sessionCode = '*737*002#';
+
+  const BACKEND = 'https://cdhr-ussd.vercel.app/api/ussd';
+
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clockDisplay').textContent =
+      now.getHours().toString().padStart(2,'0') + ':' +
+      now.getMinutes().toString().padStart(2,'0');
+  }
+  updateClock();
+  setInterval(updateClock, 10000);
+
+  function dialPress(char) { dialValue += char; updateDialDisplay(); }
+  function dialBackspace() { dialValue = dialValue.slice(0, -1); updateDialDisplay(); }
+  function dialClear() { dialValue = ''; updateDialDisplay(); }
+
+  function updateDialDisplay() {
+    document.getElementById('dialDisplay').innerHTML = dialValue + '<span class="dial-cursor"></span>';
+  }
+
+  function autoFill() { dialValue = '*737*002#'; updateDialDisplay(); }
+
+  function dialCall() {
+    if (!dialValue) return;
+    sessionCode = dialValue;
+    document.getElementById('ussdCodeLabel').textContent = dialValue;
+    sessionText = '';
+    sessionId = 'demo-' + Date.now();
+    isEnded = false;
+    clearLog();
+    showUssdScreen();
+    sendUssd('');
+  }
+
+  function showUssdScreen() {
+    document.getElementById('dialScreen').style.display = 'none';
+    document.getElementById('ussdPopup').style.display = 'flex';
+    document.getElementById('ussdPopup').style.flexDirection = 'column';
+    showLoading(true);
+    document.getElementById('ussdMessage').style.display = 'none';
+  }
+
+  function showDialScreen() {
+    document.getElementById('dialScreen').style.display = 'flex';
+    document.getElementById('ussdPopup').style.display = 'none';
+    dialValue = '';
+    updateDialDisplay();
+  }
+
+  function showLoading(show) {
+    document.getElementById('loadingDots').style.display = show ? 'flex' : 'none';
+  }
+
+  async function sendUssd(input) {
+    showLoading(true);
+    document.getElementById('ussdMessage').style.display = 'none';
+    document.getElementById('ussdActions').innerHTML = '';
+
+    if (input !== '') {
+      sessionText = sessionText === '' ? input : sessionText + '*' + input;
+    }
+
+    addLog('→', input === '' ? '[DIAL]' : input, 'log-dir');
+
+    try {
+      const body = new URLSearchParams({
+        sessionId: sessionId,
+        serviceCode: sessionCode,
+        phoneNumber: '+2348000000001',
+        text: sessionText
+      });
+
+      const res = await fetch(BACKEND, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+      });
+
+      const text = await res.text();
+      showLoading(false);
+
+      const isCon = text.startsWith('CON ');
+      const isEnd = text.startsWith('END ');
+      const message = text.replace(/^(CON |END )/, '');
+
+      addLog('←', isCon ? '[CON]' : '[END]', isEnd ? 'log-red' : 'log-green');
+
+      const msgEl = document.getElementById('ussdMessage');
+      msgEl.textContent = message;
+      msgEl.style.display = 'block';
+      msgEl.classList.remove('fade-in');
+      void msgEl.offsetWidth;
+      msgEl.classList.add('fade-in');
+
+      if (isCon) renderConActions();
+      else if (isEnd) { isEnded = true; renderEndActions(); }
+
+    } catch (err) {
+      showLoading(false);
+      const msgEl = document.getElementById('ussdMessage');
+      msgEl.textContent = '⚠ Could not reach backend.\n\nMake sure cdhr-ussd.vercel.app is deployed and accessible.\n\nError: ' + err.message;
+      msgEl.style.display = 'block';
+      renderEndActions();
+      addLog('!', 'ERROR', 'log-red');
+    }
+  }
+
+  function renderConActions() {
+    document.getElementById('ussdActions').innerHTML = `
+      <div class="ussd-input-row">
+        <input class="ussd-input" id="ussdInput" type="text" placeholder="Enter option..." autofocus
+          onkeydown="if(event.key==='Enter')sendInput()">
+        <button class="ussd-send-btn" onclick="sendInput()">Send</button>
+        <button class="ussd-cancel-btn" onclick="cancelSession()">End</button>
+      </div>
+    `;
+    setTimeout(() => { const i = document.getElementById('ussdInput'); if (i) i.focus(); }, 100);
+  }
+
+  function renderEndActions() {
+    document.getElementById('ussdActions').innerHTML = `
+      <div class="ussd-end-bar">
+        <button class="ussd-end-btn" onclick="cancelSession()">OK</button>
+      </div>
+    `;
+  }
+
+  function sendInput() {
+    const input = document.getElementById('ussdInput');
+    if (!input || !input.value.trim()) return;
+    const val = input.value.trim();
+    input.value = '';
+    sendUssd(val);
+  }
+
+  function cancelSession() {
+    addLog('✕', '[SESSION END]', 'log-red');
+    showDialScreen();
+  }
+
+  function clearLog() { document.getElementById('sessionLog').innerHTML = ''; }
+
+  function addLog(dir, text, cls) {
+    const log = document.getElementById('sessionLog');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = `<span class="${cls}">${dir}</span> ${text}`;
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+  }
+</script>
+</body>
+</html>
