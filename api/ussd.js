@@ -49,54 +49,49 @@ export default async function handler(req, res) {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    return res.status(204).end();
-  }
-
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Content-Type', 'application/json');
 
   if (req.method === 'GET') {
-    return res.status(200).json({
-      service: 'CDHR Justice Line USSD Backend',
-      status: 'running',
-      version: '1.0.0',
-      endpoints: {
-        ussd: 'POST /api/ussd  { sessionId, text, phoneNumber? }',
-        case: 'GET  /api/case?id=CDHR-XXXXX',
-      }
-    });
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).json({ service: 'CDHR Justice Line', status: 'running' });
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed. Use POST.' });
+    res.setHeader('Content-Type', 'text/plain');
+    return res.status(405).send('END Method not allowed');
   }
 
-  let body = req.body;
+  // Accept both application/json AND application/x-www-form-urlencoded
+  let sessionId, phoneNumber = '', text = '';
+  const ct = (req.headers['content-type'] || '');
 
-  // If body is a string (some proxies), parse it
-  if (typeof body === 'string') {
-    try { body = JSON.parse(body); } catch {
-      return res.status(400).json({ error: 'Invalid JSON body' });
-    }
+  if (ct.includes('application/x-www-form-urlencoded')) {
+    const raw = typeof req.body === 'string' ? req.body
+      : Object.entries(req.body || {}).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    const p = new URLSearchParams(raw);
+    sessionId   = p.get('sessionId') || '';
+    phoneNumber = p.get('phoneNumber') || '';
+    text        = p.get('text') || '';
+  } else {
+    let body = req.body;
+    if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
+    sessionId   = body?.sessionId || '';
+    phoneNumber = body?.phoneNumber || '';
+    text        = body?.text || '';
   }
-
-  const { sessionId, phoneNumber = '', text = '' } = body || {};
 
   if (!sessionId) {
-    return res.status(400).json({ error: 'sessionId is required' });
+    res.setHeader('Content-Type', 'text/plain');
+    return res.status(400).send('END Missing sessionId');
   }
 
   try {
     const response = await handleUssd({ sessionId, phoneNumber, text });
-    return res.status(200).json(response);
+    res.setHeader('Content-Type', 'text/plain');
+    return res.status(200).send(response.message);
   } catch (err) {
     console.error('[CDHR USSD Error]', err);
-    return res.status(500).json({
-      message: 'END Service temporarily unavailable.\nPlease call:\n0800-CDHR-LAW',
-      sessionId
-    });
+    res.setHeader('Content-Type', 'text/plain');
+    return res.status(500).send('END Service temporarily unavailable.\nPlease call: 0800-CDHR-LAW');
   }
 }
 
